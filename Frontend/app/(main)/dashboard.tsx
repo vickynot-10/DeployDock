@@ -126,10 +126,20 @@ export default function DashboardComp() {
       grid: { left: 12, right: 12, top: 16, bottom: 40, containLabel: true },
       xAxis: {
         type: "category",
-        data: deployments.map((d: any) => {
-          const date = new Date(d.deployed_at);
-          return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-        }),
+          data: deployments.map((d: any) => {
+    const date = new Date(d.deployed_at);
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    const hour12 = hours % 12 || 12;
+    const ampm = hours >= 12 ? "PM" : "AM";
+
+    return `${day}/${month} ${hour12}:${minutes} ${ampm}`;
+  }),
         axisLabel: { color: "#555", fontSize: 10, rotate: 35, interval: 0 },
         axisLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } },
         axisTick: { show: false },
