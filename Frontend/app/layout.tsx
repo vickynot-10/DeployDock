@@ -3,11 +3,18 @@ import "./globals.css";
 import { ToastContainer, Flip } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ReactQueryProviders from "@/utils/providers";
+import type { Metadata } from "next";
 
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
 });
+export const metadata: Metadata = {
+  title: {
+    default: "⬡ Deploy Dock",
+    template: "%s | ⬡ Deploy Dock",
+  },
+};
 
 export default function RootLayout({
   children,
@@ -30,8 +37,7 @@ export default function RootLayout({
           theme="dark"
           transition={Flip}
         />
-        <ReactQueryProviders
-        >{children}</ReactQueryProviders>
+        <ReactQueryProviders>{children}</ReactQueryProviders>
       </body>
     </html>
   );

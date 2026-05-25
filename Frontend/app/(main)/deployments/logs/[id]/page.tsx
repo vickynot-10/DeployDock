@@ -1,4 +1,12 @@
 import DeploymentLogs from "./deployment-logs";
+
+
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Deployment Logs",
+};
+
 export default async function DeploymentLogsPage({ params }: any) {
    const { id }  = await params;
 
