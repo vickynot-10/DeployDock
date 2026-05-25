@@ -425,6 +425,8 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
+      
       <div className={`shrink-0 border-t border-(--border-1,#1c1e27) px-1.5 py-2`}>
         <button
           onClick={() => mutate() }
