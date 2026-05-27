@@ -978,6 +978,7 @@ export async function DeployProject(req: Request, res: Response) {
         is_completed && msg.type === APP_CONSTANTS.WORKER_LOGS_TYPES.ERROR;
 
       if (msg.message) {
+        const now = new Date();
         await tenantDb.collection("deploy_logs").insertOne({
           deployed_at: new Date(),
           log_type: msg.type,
@@ -987,10 +988,12 @@ export async function DeployProject(req: Request, res: Response) {
         });
 
         broadcast(user_id, {
-          type: "status",
-          status: "success",
-          message: msg.message,
-        });
+      type: "log",
+      log_type: msg.type,
+      message: msg.message,
+      deployment_id,
+      deployed_at: now.toISOString(),
+    });
       }
 
       if (is_completed) clearTimeout(timeout);
@@ -1031,12 +1034,8 @@ export async function DeployProject(req: Request, res: Response) {
             deployed_at: new Date(),
           }),
         ]);
-
-        broadcast(user_id, {
-          type: "status",
-          status: "success",
-          message: msg.message,
-        });
+    broadcast(user_id, { type: "status", status: "success", deployment_id , 
+          message: msg.message, });
       }
 
       if (is_error) {
@@ -1046,11 +1045,7 @@ export async function DeployProject(req: Request, res: Response) {
             { _id: new ObjectId(deployment_id) },
             { $set: { status: APP_CONSTANTS.DEPLOYMENT_STATUS.FAILED } },
           );
-        broadcast(user_id, {
-          type: "status",
-          status: "failed",
-          message: msg.message,
-        });
+       broadcast(user_id, { type: "status", status: "failed", deployment_id,   message: msg.message, });
       }
     });
 
@@ -1059,6 +1054,7 @@ export async function DeployProject(req: Request, res: Response) {
         type: "status",
         status: "failed",
         message: e.message,
+        deployment_id
       });
 
       await Promise.all([

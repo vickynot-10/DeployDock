@@ -13,7 +13,6 @@ import {
   PiCheckCircle,
   PiXCircle,
   PiWarning,
-  PiInfo,
   PiCaretRight,
 } from "react-icons/pi";
 
@@ -130,7 +129,6 @@ export default function DeploymentLogs({ id }: Props) {
   const query_client = useQueryClient();
   const [live_logs, set_live_logs] = useState<any[]>([]);
   const [live_status, set_live_status] = useState<number | null>(null);
-  const logs_bottom_ref = useRef<HTMLDivElement>(null);
 
   const { data: res, isLoading } = useQuery({
     queryKey: ["deployment-logs", id],
@@ -301,7 +299,7 @@ export default function DeploymentLogs({ id }: Props) {
                     <LogMessage message={log.message} log_type={log.log_type} />
                   </div>
                 ))}
-              <div ref={logs_bottom_ref} />
+            
             </div>
           </div>
         </>
