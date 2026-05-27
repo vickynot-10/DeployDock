@@ -15,12 +15,6 @@ const fetch_dashboard = async (): Promise<any> => {
   return res.data;
 };
 
-const STATUS_CONFIG: any = {
-  1: { text: "Success", className: "text-green-400" },
-  2: { text: "Running", className: "text-yellow-400" },
-  3: { text: "Failed", className: "text-red-400" },
-};
-
 const STAT_CARDS = [
   {
     label: "Total Projects",
@@ -62,199 +56,161 @@ export default function DashboardComp() {
     retry: false,
   });
 
-  const deployments = useMemo(
-    () => data?.recent_deployments_20_limit ?? [],
-    [data],
-  );
+  const deployments = data?.recent_deployments_20_limit || [];
+  const webhooks = data?.recent_webhooks_20_limit || [];
 
-  const webhooks = useMemo(() => data?.recent_webhooks_20_limit ?? [], [data]);
+  const bar_option = {
+    backgroundColor: "transparent",
 
-  const donut_data = useMemo(() => {
-    const counts = { Success: 0, Running: 0, Failed: 0 };
-    deployments.forEach((d: any) => {
-      if (d.status === 1) counts.Success++;
-      else if (d.status === 2) counts.Running++;
-      else if (d.status === 3) counts.Failed++;
-    });
-    return [
-      { value: counts.Success, name: "Success", color: "#4ade80" },
-      { value: counts.Running, name: "Running", color: "#facc15" },
-      { value: counts.Failed, name: "Failed", color: "#f87171" },
-    ].filter((d) => d.value > 0);
-  }, [deployments]);
+    tooltip: {
+      trigger: "axis",
 
-  const bar_option = useMemo(
-    () => ({
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "#1a1a2e",
-        borderColor: "rgba(255,255,255,0.08)",
-        textStyle: { color: "#e2e2e2", fontSize: 12 },
-        formatter: (params: any) => {
-          const p = params[0];
-          const row: any = deployments[p.dataIndex];
-          const status = STATUS_CONFIG[row.status];
-          const dotColor =
-            row.status === 1
-              ? "#4ade80"
-              : row.status === 2
-                ? "#facc15"
-                : "#f87171";
-          return `
-          <div style="font-size:12px;line-height:1.9;min-width:160px">
-            <div style="font-weight:600;margin-bottom:4px">${row.project_name}</div>
-            <div style="color:#888">ID: <span style="color:#ccc">${row.deployment_id}</span></div>
-            <div style="color:#888">Duration: <span style="color:#ccc">${row.duration_seconds ?? "-"}s</span></div>
-            <div style="color:#888">Status: <span style="color:${dotColor}">${status?.text ?? "Unknown"}</span></div>
-            <div style="color:#666;font-size:11px;margin-top:2px">Click to view logs</div>
-          </div>`;
-        },
+      axisPointer: {
+        type: "shadow",
       },
-      legend: {
-        bottom: 0,
-        icon: "circle",
-        itemWidth: 8,
-        itemHeight: 8,
-        textStyle: { color: "#666", fontSize: 11 },
-        data: [
-          { name: "Success", itemStyle: { color: "#4ade80" } },
-          { name: "Running", itemStyle: { color: "#facc15" } },
-          { name: "Failed", itemStyle: { color: "#f87171" } },
-        ],
+
+      backgroundColor: "#1a1a2e",
+      borderColor: "rgba(255,255,255,0.08)",
+
+      textStyle: {
+        color: "#e2e2e2",
+        fontSize: 12,
       },
-      grid: { left: 12, right: 12, top: 16, bottom: 40, containLabel: true },
-      xAxis: {
-        type: "category",
-          data: deployments.map((d: any) => {
-    const date = new Date(d.deployed_at);
 
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
+      formatter: (params: any) => {
+        const row = deployments[params[0].dataIndex];
 
-    const hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    const hour12 = hours % 12 || 12;
-    const ampm = hours >= 12 ? "PM" : "AM";
-
-    return `${day}/${month} ${hour12}:${minutes} ${ampm}`;
-  }),
-        axisLabel: { color: "#555", fontSize: 10, rotate: 35, interval: 0 },
-        axisLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: "value",
-        name: "sec",
-        nameTextStyle: { color: "#555", fontSize: 10 },
-        axisLabel: { color: "#555", fontSize: 10 },
-        splitLine: {
-          lineStyle: { color: "rgba(255,255,255,0.05)", type: "dashed" },
-        },
-      },
-      series: [
-        {
-          type: "bar",
-          barMaxWidth: 32,
-          itemStyle: { borderRadius: [6, 6, 0, 0] },
-          cursor: "pointer",
-          data: deployments.map((d: any) => ({
-            value: d.duration_seconds ?? 0,
-            name:
-              d.status === 1
-                ? "Success"
-                : d.status === 2
-                  ? "Running"
-                  : "Failed",
-            itemStyle: {
-              color:
-                d.status === 1
-                  ? "#4ade80"
-                  : d.status === 2
-                    ? "#facc15"
-                    : "#f87171",
-            },
-          })),
-        },
-      ],
-    }),
-    [deployments],
-  );
-
-  const donut_option = useMemo(
-    () => ({
-      backgroundColor: "transparent",
-      
-      tooltip: {
-        trigger: "item",
-        backgroundColor: "#1a1a2e",
-        borderColor: "rgba(255,255,255,0.08)",
-        textStyle: { color: "#e2e2e2", fontSize: 12 },
-        formatter: (p: any) =>
-          `<div style="font-size:12px;line-height:1.8">
-          <span style="color:${p.color}">●</span>
-          <b style="margin-left:6px">${p.name}</b>
-          <div style="color:#888;margin-top:2px">
-            Count: <span style="color:#ccc">${p.value}</span>
-            &nbsp;·&nbsp;
-            <span style="color:#ccc">${p.percent}%</span>
+        return `
+        <div style="font-size:12px;line-height:1.9;min-width:160px">
+          <div style="font-weight:600;margin-bottom:4px">
+            ${row._id}
           </div>
-        </div>`,
+
+          <div style="color:#888">
+            Total:
+            <span style="color:#ccc">
+              ${row.total_deployments}
+            </span>
+          </div>
+
+          <div style="color:#888">
+            Success:
+            <span style="color:#4ade80">
+              ${row.success_count}
+            </span>
+          </div>
+
+          <div style="color:#888">
+            Failed:
+            <span style="color:#f87171">
+              ${row.failed_count}
+            </span>
+          </div>
+
+        
+        </div>
+      `;
       },
-      legend: {
-        bottom: 0,
-        icon: "circle",
-        itemWidth: 8,
-        itemHeight: 8,
-        textStyle: { color: "#666", fontSize: 11 },
-        formatter: (name: string) => {
-          const item = donut_data.find((d) => d.name === name);
-          const total = donut_data.reduce((s, d) => s + d.value, 0);
-          const pct =
-            item && total ? Math.round((item.value / total) * 100) : 0;
-          return `${name}  ${item?.value ?? 0}  (${pct}%)`;
+    },
+
+    legend: {
+      bottom: 0,
+      icon: "circle",
+
+      itemWidth: 8,
+      itemHeight: 8,
+
+      textStyle: {
+        color: "#666",
+        fontSize: 11,
+      },
+
+      data: ["Success", "Failed"],
+    },
+
+    grid: {
+      left: 12,
+      right: 12,
+      top: 16,
+      bottom: 40,
+      containLabel: true,
+    },
+
+    xAxis: {
+      type: "category",
+
+      data: deployments.map((d: any) => d._id),
+
+      axisLabel: {
+        color: "#555",
+        fontSize: 10,
+      },
+
+      axisLine: {
+        lineStyle: {
+          color: "rgba(255,255,255,0.06)",
         },
       },
-      series: [
-        {
-          type: "pie",
-          radius: ["52%", "75%"],
-          center: ["50%", "46%"],
-          avoidLabelOverlap: false,
-          label: {
-            show: true,
-            position: "center",
-            formatter: () => `{total|${deployments.length}}\n{sub|total}`,
-            rich: {
-              total: {
-                fontSize: 26,
-                fontWeight: 700,
-                color: "#e2e2e2",
-                lineHeight: 32,
-              },
-              sub: { fontSize: 11, color: "#666", lineHeight: 18 },
-            },
-          },
-          emphasis: {
-            label: { show: true },
-            itemStyle: {
-              shadowBlur: 12,
-              shadowOffsetX: 0,
-              shadowColor: "rgba(0,0,0,0.4)",
-            },
-          },
-          labelLine: { show: false },
-          data: donut_data.map((d) => ({
-            value: d.value,
-            name: d.name,
-            itemStyle: { color: d.color },
-          })),
+
+      axisTick: {
+        show: false,
+      },
+    },
+
+    yAxis: {
+      type: "value",
+
+      axisLabel: {
+        color: "#555",
+        fontSize: 10,
+      },
+
+      splitLine: {
+        lineStyle: {
+          color: "rgba(255,255,255,0.05)",
+          type: "dashed",
         },
-      ],
-    }),
-    [donut_data, deployments],
-  );
+      },
+    },
+
+    series: [
+      {
+        name: "Success",
+        type: "bar",
+
+        barWidth: 18,
+
+        itemStyle: {
+          color: "#4ade80",
+          borderRadius: [6, 6, 0, 0],
+        },
+
+        emphasis: {
+          focus: "series",
+        },
+
+        data: deployments.map((d: any) => d.success_count || 0),
+      },
+
+      {
+        name: "Failed",
+        type: "bar",
+
+        barWidth: 18,
+
+        itemStyle: {
+          color: "#f87171",
+          borderRadius: [6, 6, 0, 0],
+        },
+
+        emphasis: {
+          focus: "series",
+        },
+
+        data: deployments.map((d: any) => d.failed_count || 0),
+      },
+    ],
+  };
 
   const webhook_columns = [
     { key: "project_name", label: "Project Name" },
@@ -352,30 +308,11 @@ export default function DashboardComp() {
             Recent Deployment Logs
           </p>
 
-          <div
-            className={`grid gap-3 ${donut_data.length > 0 ? "grid-cols-1 lg:grid-cols-[1fr_300px]" : "grid-cols-1"}`}
-          >
-            <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--bg-0)] overflow-hidden">
-              <ReactECharts
-                style={{ height: 300, width: "100%" }}
-                option={bar_option}
-                onEvents={{
-                  click: (params: any) => {
-                    const row = deployments[params.dataIndex];
-                    if (row?._id) router.push(`/deployments/logs/${row._id}`);
-                  },
-                }}
-              />
-            </div>
-
-            {donut_data && donut_data.length > 0 && (
-              <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--bg-0)] overflow-hidden">
-                <ReactECharts
-                  style={{ height: 300, width: "100%" }}
-                  option={donut_option}
-                />
-              </div>
-            )}
+          <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--bg-0)] overflow-hidden">
+            <ReactECharts
+              style={{ height: 300, width: "100%" }}
+              option={bar_option}
+            />
           </div>
         </>
       )}
