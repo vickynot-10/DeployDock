@@ -32,7 +32,7 @@
   background-color: oklch(19% 0 0);
 }
 .tool-tip {
-  z-index: 9999 !important;
+  z-index: 997 !important;
 }
 body {
   font-family: var(--font-outfit), sans-serif;

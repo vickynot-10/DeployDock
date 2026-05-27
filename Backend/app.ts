@@ -18,6 +18,7 @@ import DashboardRoutes from "./routes/dashboard.route";
 import IntegrationRoutes from "./routes/integrations.route";
 import WebhookRoutes from "./routes/webhook.route";
 import ProcessesRoutes from "./routes/processes.route";
+import AIRoutes from "./routes/ai.routes";
 
 // SSE
 import SSERoutes from "./routes/sse.route";
@@ -49,6 +50,8 @@ app.use("/api/webhooks", WebhookRoutes);
 app.use("/api/processes", ProcessesRoutes);
 app.use("/api/cron",CronRoutes)
 app.use("/api/servers", ServerRoutes);
+
+app.use("/api/ai", AIRoutes);
 
 app.use("/", AuthMiddleware, SSERoutes);
 

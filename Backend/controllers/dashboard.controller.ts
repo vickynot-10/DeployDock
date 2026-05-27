@@ -7,7 +7,6 @@ export async function DashBoardPage(req: Request, res: Response) {
     const tenant_key = `tenant_${(req as any).user.tenant_id}`;
     const db = await getDb(tenant_key);
 
-
     const [
       total_no_projects,
       new_projects,
@@ -15,7 +14,6 @@ export async function DashBoardPage(req: Request, res: Response) {
       stopped_projects,
       recent_deployments_20_limit,
       recent_webhooks_20_limit,
-      
     ] = await Promise.all([
       db.collection("projects").countDocuments({ dels: 0 }),
       db
@@ -126,9 +124,8 @@ export async function DashBoardPage(req: Request, res: Response) {
       stopped_projects,
       recent_deployments_20_limit,
       recent_webhooks_20_limit,
-
     });
-  } catch(e) {
-    throw e
+  } catch (e) {
+    throw e;
   }
 }
