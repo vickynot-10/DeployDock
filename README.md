@@ -192,4 +192,6 @@ DeployDock supports git-based rollback. Each deployment records its commit SHA, 
 
 ## License
 
-Private — not for public distribution.
+This project is licensed under the [GNU Affero General Public License v3.0](./LICENSE).
+
+See the [LICENSE](./LICENSE) file for full details.

@@ -59,158 +59,138 @@ export default function DashboardComp() {
   const deployments = data?.recent_deployments_20_limit || [];
   const webhooks = data?.recent_webhooks_20_limit || [];
 
-  const bar_option = {
-    backgroundColor: "transparent",
+ const bar_option = {
+  backgroundColor: "transparent",
 
-    tooltip: {
-      trigger: "axis",
-
-      axisPointer: {
-        type: "shadow",
-      },
-
-      backgroundColor: "#1a1a2e",
-      borderColor: "rgba(255,255,255,0.08)",
-
-      textStyle: {
-        color: "#e2e2e2",
-        fontSize: 12,
-      },
-
-      formatter: (params: any) => {
-        const row = deployments[params[0].dataIndex];
-
-        return `
-        <div style="font-size:12px;line-height:1.9;min-width:160px">
-          <div style="font-weight:600;margin-bottom:4px">
-            ${row._id}
+  tooltip: {
+    trigger: "axis",
+    axisPointer: { type: "none" },
+    backgroundColor: "rgba(15,15,25,0.92)",
+    borderColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: [10, 14],
+    textStyle: { color: "#e2e2e2", fontSize: 12 },
+    formatter: (params: any) => {
+      const row = deployments[params[0].dataIndex];
+      return `
+        <div style="font-size:12px;line-height:2;min-width:150px">
+          <div style="font-weight:600;color:#fff;margin-bottom:6px;font-size:13px">${row._id}</div>
+          <div style="display:flex;justify-content:space-between;gap:24px">
+            <span style="color:#555">Total</span>
+            <span style="color:#aaa;font-weight:500">${row.total_deployments}</span>
           </div>
-
-          <div style="color:#888">
-            Total:
-            <span style="color:#ccc">
-              ${row.total_deployments}
-            </span>
+          <div style="display:flex;justify-content:space-between;gap:24px">
+            <span style="color:#555">Success</span>
+            <span style="color:#4ade80;font-weight:500">${row.success_count}</span>
           </div>
-
-          <div style="color:#888">
-            Success:
-            <span style="color:#4ade80">
-              ${row.success_count}
-            </span>
+          <div style="display:flex;justify-content:space-between;gap:24px">
+            <span style="color:#555">Failed</span>
+            <span style="color:#f87171;font-weight:500">${row.failed_count}</span>
           </div>
-
-          <div style="color:#888">
-            Failed:
-            <span style="color:#f87171">
-              ${row.failed_count}
-            </span>
-          </div>
-
-        
         </div>
       `;
-      },
     },
+  },
 
-    legend: {
-      bottom: 0,
-      icon: "circle",
+  legend: {
+    bottom: 4,
+    icon: "circle",
+    itemWidth: 6,
+    itemHeight: 6,
+    itemGap: 20,
+    textStyle: { color: "#444", fontSize: 11 },
+    data: ["Success", "Failed"],
+  },
 
-      itemWidth: 8,
-      itemHeight: 8,
+  grid: {
+    left: 16,
+    right: 16,
+    top: 20,
+    bottom: 44,
+    containLabel: true,
+  },
 
-      textStyle: {
-        color: "#666",
-        fontSize: 11,
-      },
+  xAxis: {
+    type: "category",
+    data: deployments.map((d: any) => d._id),
+    axisLabel: { color: "#3f3f3f", fontSize: 11, margin: 10 },
+    axisLine: { show: false },
+    axisTick: { show: false },
+  },
 
-      data: ["Success", "Failed"],
+  yAxis: {
+    type: "value",
+    minInterval: 1,
+    axisLabel: { color: "#3f3f3f", fontSize: 10 },
+    splitLine: {
+      lineStyle: { color: "rgba(255,255,255,0.04)", type: "dashed" },
     },
+  },
 
-    grid: {
-      left: 12,
-      right: 12,
-      top: 16,
-      bottom: 40,
-      containLabel: true,
-    },
-
-    xAxis: {
-      type: "category",
-
-      data: deployments.map((d: any) => d._id),
-
-      axisLabel: {
-        color: "#555",
-        fontSize: 10,
-      },
-
-      axisLine: {
-        lineStyle: {
-          color: "rgba(255,255,255,0.06)",
+  series: [
+    {
+      name: "Success",
+      type: "bar",
+      barWidth: 20,
+      barGap: "40%",
+      barCategoryGap: "55%",
+      itemStyle: {
+        color: {
+          type: "linear",
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(74,222,128,0.9)" },
+            { offset: 1, color: "rgba(74,222,128,0.25)" },
+          ],
         },
+        borderRadius: [4, 4, 0, 0],
       },
-
-      axisTick: {
-        show: false,
-      },
-    },
-
-    yAxis: {
-      type: "value",
-
-      axisLabel: {
-        color: "#555",
-        fontSize: 10,
-      },
-
-      splitLine: {
-        lineStyle: {
-          color: "rgba(255,255,255,0.05)",
-          type: "dashed",
-        },
-      },
-    },
-
-    series: [
-      {
-        name: "Success",
-        type: "bar",
-
-        barWidth: 18,
-
+      emphasis: {
         itemStyle: {
-          color: "#4ade80",
-          borderRadius: [6, 6, 0, 0],
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(74,222,128,1)" },
+              { offset: 1, color: "rgba(74,222,128,0.4)" },
+            ],
+          },
         },
-
-        emphasis: {
-          focus: "series",
-        },
-
-        data: deployments.map((d: any) => d.success_count || 0),
       },
-
-      {
-        name: "Failed",
-        type: "bar",
-
-        barWidth: 18,
-
+      data: deployments.map((d: any) => d.success_count || 0),
+    },
+    {
+      name: "Failed",
+      type: "bar",
+      barWidth: 20,
+      itemStyle: {
+        color: {
+          type: "linear",
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(248,113,113,0.9)" },
+            { offset: 1, color: "rgba(248,113,113,0.25)" },
+          ],
+        },
+        borderRadius: [4, 4, 0, 0],
+      },
+      emphasis: {
         itemStyle: {
-          color: "#f87171",
-          borderRadius: [6, 6, 0, 0],
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(248,113,113,1)" },
+              { offset: 1, color: "rgba(248,113,113,0.4)" },
+            ],
+          },
         },
-
-        emphasis: {
-          focus: "series",
-        },
-
-        data: deployments.map((d: any) => d.failed_count || 0),
       },
-    ],
-  };
+      data: deployments.map((d: any) => d.failed_count || 0),
+    },
+  ],
+};
 
   const webhook_columns = [
     { key: "project_name", label: "Project Name" },
