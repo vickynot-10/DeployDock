@@ -78,7 +78,6 @@ const framework_icons: Record<number, React.ReactNode> = {
   10: <SiDocker size={13} />,
 };
 
-
 const examples: Record<string, { label: string; content: string }> = {
   deploy_ssh: {
     label: "SSH / Node.js",
@@ -483,15 +482,7 @@ export default function AddOrEditProject({ id }: Props) {
     if (current > 0) set_active_tab(tab_order[current - 1]);
   }
 
-  if (
-    user_loading ||
-    (id &&
-      (project_loading ||
-        repo_loading ||
-        branch_loading ||
-        server_loading ||
-        project_info_loading))
-  ) {
+  if (user_loading || (id && project_loading)) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton height={20} width={200} borderRadius={6} />

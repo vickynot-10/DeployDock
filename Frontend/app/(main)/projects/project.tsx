@@ -48,13 +48,7 @@ const modal_config: Record<
     icon: <PiStopCircle className="text-red-500" size={28} />,
     desc: "This will stop the running process on your server.",
   },
-  4: {
-    title: "Restart Project?",
-    btn: "Restart",
-    variant: "primary",
-    icon: <PiArrowsClockwise className="text-blue-500" size={28} />,
-    desc: "This will restart the process on your server.",
-  },
+
   5: {
     title: "Rollback Project?",
     btn: "Rollback",
@@ -110,7 +104,7 @@ import { PiDotsThreeVertical } from "react-icons/pi";
 
 import { createPortal } from "react-dom";
 
-function ActionsDropdown({ row, onEdit, onDelete, onLogs, onRollback }: any) {
+function ActionsDropdown({ row, onDelete, onLogs, onRollback }: any) {
   const [open, set_open] = useState(false);
   const [pos, set_pos] = useState({ top: 0, left: 0 });
   const btn_ref = useRef<HTMLDivElement>(null);
@@ -149,7 +143,6 @@ function ActionsDropdown({ row, onEdit, onDelete, onLogs, onRollback }: any) {
       className="fixed z-[9999] w-44 bg-[var(--bg-2)] border border-[var(--border-1)] rounded-xl shadow-xl overflow-hidden"
     >
       {[
-        { label: "Edit", icon: <MdEdit size={14} />, action: onEdit },
         {
           label: "Runtime Logs",
           icon: <PiTerminalWindow size={14} />,
@@ -285,6 +278,15 @@ export default function Project() {
 
       render: (_: any, row: any) => (
         <div className="flex flex-row items-center justify-center gap-2">
+          <TooltipWrapper content="Edit">
+            <AppIconButton
+              variant="outline"
+              onClick={() => NavigatePages(row._id)}
+            >
+              <MdEdit size={18} />
+            </AppIconButton>
+          </TooltipWrapper>
+
           <TooltipWrapper content="Deploy">
             <AppIconButton
               variant="outline"
@@ -305,20 +307,8 @@ export default function Project() {
             </TooltipWrapper>
           )}
 
-          {(row.status === 1 || row.status === 2) && (
-            <TooltipWrapper content="Restart">
-              <AppIconButton
-                variant="secondary"
-                onClick={() => OpenModal(row._id, 4)}
-              >
-                <PiArrowsClockwise size={18} />
-              </AppIconButton>
-            </TooltipWrapper>
-          )}
-
           <ActionsDropdown
             row={row}
-            onEdit={() => NavigatePages(row._id)}
             onDelete={() => OpenModal(row._id, 1)}
             onLogs={() => NavigateToLogs(row._id)}
             onRollback={() => OpenModal(row._id, 5)}
@@ -350,19 +340,6 @@ export default function Project() {
         queryClient.invalidateQueries({ queryKey: ["projects"] });
       } else {
         toast.error(data?.data?.msg || "Rollback failed");
-      }
-    },
-  });
-
-  const restartMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return api.post(`/projects/restart`, { id });
-    },
-    onSuccess: (data: any) => {
-      if (data?.data?.is_restarted) {
-        toast.success(data.data.msg);
-        CloseModal();
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
       }
     },
   });
@@ -496,9 +473,7 @@ export default function Project() {
       stopMutation.mutate(modalData.id);
       return;
     }
-    if (modalData.type === 4) {
-      restartMutation.mutate(modalData.id);
-    }
+
     if (modalData.type === 5) {
       rollbackMutation.mutate(modalData.id);
       return;
@@ -596,7 +571,6 @@ export default function Project() {
           deleteMutation.isPending ||
           deployMutation.isPending ||
           stopMutation.isPending ||
-          restartMutation.isPending ||
           rollbackMutation.isPending
         }
         submit_text={modal_config[modalData?.type ?? 1]?.btn}
