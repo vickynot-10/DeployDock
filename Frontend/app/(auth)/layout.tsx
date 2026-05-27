@@ -1,6 +1,7 @@
 import { FaGithub } from "react-icons/fa";
 import "../globals.css";
 import Image from "next/image";
+import Link from "next/link";
 export default function AuthLayout({
   children,
 }: {
@@ -60,7 +61,7 @@ export default function AuthLayout({
             className="flex items-center gap-3 text-[12px]"
             style={{ color: "var(--text-4)" }}
           >
-            <a
+            <Link
               href="https://github.com/vickynot-10"
               target="_blank"
               rel="noopener noreferrer"
@@ -69,11 +70,11 @@ export default function AuthLayout({
             >
               <FaGithub size={13} />
               <span>Created by Vicky</span>
-            </a>
+            </Link>
 
             <span>•</span>
 
-            <a
+            <Link
               href="https://github.com/vickynot-10/DeployDock/"
               target="_blank"
               rel="noopener noreferrer"
@@ -81,7 +82,7 @@ export default function AuthLayout({
               style={{ color: "var(--accent)" }}
             >
               View Repository
-            </a>
+            </Link>
           </div>
         </div>
       </div>

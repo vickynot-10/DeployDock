@@ -19,15 +19,14 @@
   --blue: #0f79f3;
 }
 
-.text-muted-foreground, .text-muted-foreground\/40 {
-color: oklch(55.6% .015 230);
+.text-muted-foreground,
+.text-muted-foreground\/40 {
+  color: oklch(55.6% 0.015 230);
 }
 
 .text-card-foreground {
-color: 
-oklch(92.2% .005 230);
+  color: oklch(92.2% 0.005 230);
 }
-
 
 .bg-card {
   background-color: oklch(19% 0 0);
@@ -78,7 +77,6 @@ button:disabled {
   height: 1px;
   background: var(--border-1);
 }
-
 
 .loader {
   display: flex;
@@ -317,4 +315,3 @@ input[type="number"] {
   background: var(--bg-3) !important;
   color: var(--text-1) !important;
 }
-   

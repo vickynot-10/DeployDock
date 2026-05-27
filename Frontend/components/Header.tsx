@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FaGithub, FaUserEdit } from "react-icons/fa";
 import { useMe } from "@/hooks/useMe";
-import TooltipWrapper from "@/helpers/tooltipWrapper";
+import Link from "next/link";
+
 async function LogoutFn() {
   const res = await api.post("/auth/sign-out");
   return res.data;
@@ -96,17 +97,14 @@ export default function Header() {
           )}
         </div>
 
-        {data && data.provider === "github" && (
-          <TooltipWrapper
-            content="Logged In as Github"
-            placement="right"
-            direction="bottom"
-          >
-            <div className="bg-transparent border-0 flex ms-2 items-center justify-center">
-              <FaGithub />
-            </div>
-          </TooltipWrapper>
-        )}
+        <Link
+          href="https://github.com/vickynot-10/DeployDock/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-transparent border-0 flex ms-2 items-center justify-center"
+        >
+          <FaGithub />
+        </Link>
       </div>
     </header>
   );
