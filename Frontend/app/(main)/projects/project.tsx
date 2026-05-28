@@ -327,6 +327,7 @@ export default function Project() {
         toast.success(data.data.msg);
         CloseModal();
         queryClient.invalidateQueries({ queryKey: ["projects"] });
+        queryClient.invalidateQueries({ queryKey: ["process-logs"] });
       }
     },
   });
