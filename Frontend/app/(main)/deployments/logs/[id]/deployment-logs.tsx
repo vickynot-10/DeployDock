@@ -258,7 +258,7 @@ export default function DeploymentLogs({ id }: Props) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-[var(--border-1)]">
+          <div className="rounded-xl mb-4 border border-[var(--border-1)]">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[var(--border-1)] bg-[var(--bg-1)]">
               <PiTerminal size={15} className="text-[var(--text-4)]" />
               <span className="text-[13px] font-semibold text-[var(--text-2)]">
@@ -275,7 +275,7 @@ export default function DeploymentLogs({ id }: Props) {
               </span>
             </div>
 
-            <div className="bg-[var(--bg-0)] p-4 flex flex-col gap-0 font-mono text-[12.5px] min-h-[200px] max-h-[480px] overflow-y-auto">
+            <div className="bg-[var(--bg-0)] p-4 flex flex-col gap-0 font-mono text-[12.5px] min-h-[200px]  overflow-y-auto">
               {display_logs.length === 0 && (
                 <p className="text-[var(--text-4)]">
                   {is_running ? "Waiting for logs..." : "No logs available."}
