@@ -154,7 +154,7 @@ export default function SeparateProcessLogsComp({
         </div>
       </div>
 
-      <div className="rounded-xl border my-3 border-neutral-800 bg-[#0d0d0f] overflow-hidden font-mono text-[12.5px]">
+      <div className="rounded-xl border my-3 border-neutral-800 bg-[#0d0d0f] font-mono text-[12.5px]">
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#16161c] border-b border-neutral-800">
           <div className="flex gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
@@ -169,7 +169,7 @@ export default function SeparateProcessLogsComp({
           </span>
         </div>
 
-        <div className="max-h-[500px] overflow-y-auto py-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-neutral-800">
+        <div className="overflow-y-auto py-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-neutral-800">
           {isLoading || isFetching ? (
             <div className="px-3.5 py-2">
               {Array.from({ length: lines }).map((_, i) => (

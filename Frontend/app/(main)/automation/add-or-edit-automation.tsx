@@ -32,7 +32,6 @@ import { TbSettingsAutomation } from "react-icons/tb";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AppButton from "@/components/ui-elements/AppButton";
 import { toast } from "react-toastify";
-import { useForm, Controller } from "react-hook-form";
 
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -49,13 +48,20 @@ const quill_dark_style = `
   .ql-toolbar button:hover .ql-stroke, .ql-toolbar button.ql-active .ql-stroke { stroke: var(--accent) !important; }
   .ql-toolbar button:hover .ql-fill, .ql-toolbar button.ql-active .ql-fill { fill: var(--accent) !important; }
 `;
+type NodeConfig = {
+  to?: string[];
+  cc?: string[];
+  subject?: string;
+  body?: string;
+  message?: string;
+};
 
 type NodeData = {
   label: string;
   nodeType: "email" | "whatsapp";
   icon: string;
   color: string;
-  config?: Record<string, string>;
+  config?: NodeConfig;
 };
 
 type CatalogueItem = {
@@ -68,7 +74,11 @@ type CatalogueItem = {
   nodeType: "email" | "whatsapp";
 };
 
-type ModalState = { id: string; type: "email" | "whatsapp" } | null;
+type ModalState = {
+  id: string;
+  type: "email" | "whatsapp";
+  config?: NodeConfig;
+} | null;
 
 type NodeCallbacks = {
   deleteNode: (id: string) => void;
@@ -264,7 +274,8 @@ export default function AddOrEditAutomation({ id }: Props) {
 
   const handleEdit = useCallback(
     (nodeId: string, type: "email" | "whatsapp") => {
-      setModalType({ id: nodeId, type });
+      const node = nodesRef.current.find((n) => n.id === nodeId);
+      setModalType({ id: nodeId, type, config: node?.data?.config });
     },
     [],
   );
@@ -273,7 +284,7 @@ export default function AddOrEditAutomation({ id }: Props) {
   callbacksRef.current.onEdit = handleEdit;
 
   const handleModalSave = useCallback(
-    (config: Record<string, string>) => {
+    (config: NodeConfig) => {
       if (!modal_type) return;
       setNodes((ns) =>
         ns.map((n) =>
@@ -462,6 +473,12 @@ export default function AddOrEditAutomation({ id }: Props) {
     }
   }, [data]);
 
+  // Add this ref right after the nodes/edges state declarations
+  const nodesRef = useRef(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
   const addNode = useCallback(
     (item: CatalogueItem) => {
       const nodeId = `node-${Date.now()}`;
@@ -494,10 +511,6 @@ export default function AddOrEditAutomation({ id }: Props) {
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
   if (isLoading) return <AddOrEditAutomationSkeleton />;
-
-  const selected_node = modal_type
-    ? nodes.find((n) => n.id === modal_type.id)
-    : null;
 
   return (
     <div className="flex h-full w-full relative overflow-hidden">
@@ -726,7 +739,8 @@ export default function AddOrEditAutomation({ id }: Props) {
 
       {modal_type && modal_type.type === "email" && (
         <EmailModal
-          config={selected_node?.data?.config}
+          key={modal_type.id}
+          config={modal_type.config}
           onSave={handleModalSave}
           onClose={handleModalClose}
         />
@@ -734,7 +748,8 @@ export default function AddOrEditAutomation({ id }: Props) {
 
       {modal_type && modal_type.type === "whatsapp" && (
         <WhatsAppModal
-          config={selected_node?.data?.config}
+          key={modal_type.id}
+          config={modal_type.config}
           onSave={handleModalSave}
           onClose={handleModalClose}
         />
@@ -743,7 +758,7 @@ export default function AddOrEditAutomation({ id }: Props) {
   );
 }
 
-function useChips(initial: string) {
+function useChips(initial: string | string[]) {
   const [chips, setChips] = useState<string[]>(() => {
     if (!initial) return [];
     if (Array.isArray(initial)) return initial;
@@ -860,8 +875,8 @@ function EmailModal({
   onSave,
   onClose,
 }: {
-  config?: Record<string, string>;
-  onSave: (c: Record<string, string>) => void;
+  config?: NodeConfig;
+  onSave: (c: NodeConfig) => void;
   onClose: () => void;
 }) {
   const toChips = useChips(config?.to ?? "");
@@ -870,9 +885,18 @@ function EmailModal({
   const [body, setBody] = useState(config?.body ?? "");
 
   const handleSave = () => {
+    const flush = (chips: string[], input: string) => {
+      if (!input.trim()) return chips;
+      const pending = input
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return [...new Set([...chips, ...pending])];
+    };
+
     onSave({
-      to: toChips.chips as any,
-      cc: ccChips.chips as any,
+      to: flush(toChips.chips, toChips.input),
+      cc: flush(ccChips.chips, ccChips.input),
       subject,
       body,
     });
@@ -1042,14 +1066,25 @@ function WhatsAppModal({
   onSave,
   onClose,
 }: {
-  config?: Record<string, string>;
-  onSave: (c: Record<string, string>) => void;
+  config?: NodeConfig;
+  onSave: (c: NodeConfig) => void;
   onClose: () => void;
 }) {
   const toChips = useChips(config?.to ?? "");
   const [message, setMessage] = useState(config?.message ?? "");
 
-  const handleSave = () => onSave({ to: toChips.chips as any, message });
+  const handleSave = () => {
+    const flush = (chips: string[], input: string) => {
+      if (!input.trim()) return chips;
+      const pending = input
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return [...new Set([...chips, ...pending])];
+    };
+
+    onSave({ to: flush(toChips.chips, toChips.input), message });
+  };
 
   return (
     <>
