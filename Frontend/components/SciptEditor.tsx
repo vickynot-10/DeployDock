@@ -9,13 +9,12 @@ type Props = {
 export default function DeployScriptEditor({ value, onChange }: Props) {
   return (
     <Editor
-      height="200px"
+      height="300px"
       language="shell"
       theme="vs-dark"
       value={value}
       onChange={(val) => onChange(val ?? "")}
       path="deploy-script"
-      
       options={{
         minimap: { enabled: false },
         fontSize: 13,

@@ -449,6 +449,7 @@ export default function Project() {
               </button>
             </div>,
           );
+            queryClient.invalidateQueries({ queryKey: ["process-logs"] });
         } else {
           toast.success(data.data.msg || "Deployment started");
         }
