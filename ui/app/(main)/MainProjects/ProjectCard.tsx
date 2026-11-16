@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Layers, Settings } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/date";
@@ -10,6 +10,7 @@ import Link from "next/link";
 export type Project = {
   id: string;
   project_name: string;
+  services_count: string | number;
   environment: string;
   updated_on: string;
 };
@@ -67,14 +68,34 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <span className="inline-block rounded-sm bg-muted px-3 py-1 text-sm">
-          {project.environment}
-        </span>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-block rounded-sm bg-muted px-3 py-1 text-sm">
+            {project.environment}
+          </span>
+          <ServicesCount count={project.services_count} />
+        </div>
         <p className="text-sm text-muted-foreground">
           Last updated {datePart} · {timePart}
         </p>
       </div>
     </motion.div>
+  );
+}
+
+function ServicesCount({ count }: { count: string | number }) {
+  const total = Number(count) || 0;
+
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded-sm bg-muted px-3 py-1 text-sm"
+      title={`${total} ${total === 1 ? "service" : "services"}`}
+    >
+      <Layers className="size-3.5 text-muted-foreground" />
+      <span className="font-medium">{total}</span>
+      <span className="text-muted-foreground">
+        {total === 1 ? "service" : "services"}
+      </span>
+    </div>
   );
 }
