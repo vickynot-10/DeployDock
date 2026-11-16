@@ -297,3 +297,13 @@ export function EditServiceSkeleton() {
     </div>
   );
 }
+
+export function AppSettingsLoader() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-52 w-full" />
+      <Skeleton className="h-52 w-full" />
+    </div>
+  );
+}
