@@ -81,7 +81,7 @@ export function AppSidebar() {
     { title: "Back", icon: ArrowLeft, onClick: goBack },
 
     { title: "Deploys", icon: Rocket, href: `${base}/deploys` },
-    { title: "Settings", icon: Settings, href: `${base}/settings` },
+    { title: "Settings", icon: Settings, href: `/settings` },
   ];
   return (
     <Sidebar className="px-0 h-full [&_[data-slot=sidebar-inner]]:h-full">
