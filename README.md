@@ -1,180 +1,217 @@
 # DeployDock
 
-A self-hosted deployment platform. Connect a GitHub repo or a Docker image, and DeployDock builds it, runs it in a container on your own server, and gives it its own HTTPS subdomain.
+Self-hosted container deployment platform — connect a GitHub repo or Docker image, and DeployDock builds, runs, and routes it to a unique subdomain via Traefik.
 
-## Features
+**Live:** _not yet deployed_ &nbsp;|&nbsp; **Screenshot:** _placeholder_
 
-- Projects contain services (static site or web app), and each service has its own deployment history
-- Deploy from a GitHub repo (public or private) or from a Docker image
-- Every service gets a unique subdomain, `<slug>.<BASE_DOMAIN>`, routed by Traefik with wildcard HTTPS
-- Auto-deploy on push through GitHub webhooks, plus manual deploys from the UI
-- Build and runtime logs streamed to the UI over Socket.IO
-- Per-service environment variables, build command, start command, root directory and port
-- Health check before traffic switches: the new container must pass before the old one is removed
-- One-click rollback to any previous deployment. If the old image is gone, it is rebuilt from the stored commit SHA
-- Deploy jobs run in a BullMQ queue with 3 retries and exponential backoff
-- Deployment and container metrics dashboard
-- Runtime detection from the repo, or use the repo's own `Dockerfile`
+---
+
+## What It Does
+
+- **Deploy from GitHub or Docker Hub** — point a service at a repo branch or a Docker image URL; the worker clones, builds (or pulls), and starts a container automatically.
+- **Auto-deploy on push** — registers a GitHub webhook per service; a verified `push` event to the tracked branch triggers a new deployment without any manual step.
+- **One subdomain per service** — every service gets a slug-based hostname (`<slug>.<BASE_DOMAIN>`) written as Traefik labels on the container, so routing is live the moment the container starts.
+- **Rollback to any past deployment** — re-queues the target deployment ID; if the original image is still cached it is reused, otherwise the worker re-clones from the stored `commit_sha` and rebuilds.
+- **Suspend / resume / delete services** — container actions (stop, start, remove) are queued through a separate BullMQ queue with concurrency 5, independent of the deploy queue.
+- **Live build logs and runtime container logs** — build output is buffered per deployment and stored in `deployment_logs`; running-container stdout/stderr is tailed via the Docker API and written to `service_logs` with periodic flushes.
+- **Per-container metrics** — `GET /api/metrics` returns live CPU %, memory usage/limit, network rx/tx bytes, and restart count pulled directly from `dockerode`.
+
+---
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    GH[GitHub push] -->|signed webhook| API
-    UI[Next.js UI] -->|REST + Socket.IO| API
-    API[Express API] -->|enqueue job| Q[(Redis / BullMQ)]
-    API --- PG[(Postgres)]
-    Q --> W[Deploy worker]
-    W -->|clone + docker build| D[Docker daemon]
-    D --> C[Service container]
-    T[Traefik] -->|Host rule per slug| C
-    W -->|logs and status| Q
-    Q -->|Socket.IO Redis adapter| API
+flowchart TD
+    A["GitHub push"] -->|"x-hub-signature-256 verified"| B["POST /webhooks/github/:service_id"]
+    C["UI / API caller"] -->|"manual trigger / rollback"| D["POST /api/services/deploy"]
+    B --> E["EnqueueDeployment\n(BullMQ – deployments queue)"]
+    D --> E
+    E --> F["deploy.worker\n(concurrency 1)"]
+    F -->|"GitHub deploy type"| G["Clone repo\n(simple-git, --depth 1)"]
+    F -->|"Docker deploy type"| H["docker.pull image"]
+    G --> I["Generate or use repo Dockerfile"]
+    I --> J["docker.buildImage\n(15 min timeout)"]
+    J --> K
+    H --> K["docker.createContainer\nTraefik labels + project network"]
+    K --> L["Health check\nHTTP probe on container IP:port"]
+    L -->|"healthy"| M["Remove old containers\nmark deployment RUNNING"]
+    L -->|"unhealthy"| N["Remove container\nmark deployment FAILED"]
+    M --> O["Traefik reads labels\nroutes slug.BASE_DOMAIN to container"]
+    P["container-action.worker\n(concurrency 5)"] -->|"suspend/resume/delete"| Q["Stop / Start / Remove container"]
 ```
 
-1. A deploy is triggered manually or by a push webhook. The API verifies the HMAC signature, skips duplicate deliveries, and inserts a `queued` deployment row.
-2. The job goes to the `deployments` BullMQ queue. The worker picks it up, clones the repo at a pinned commit, and builds the image.
-3. The container starts with Traefik labels for `Host(<slug>.<BASE_DOMAIN>)`, a 256 MB memory limit and a restart policy.
-4. After the health check passes, older running containers for that service are removed and marked `superseded`.
-5. Logs and status changes are pushed to the browser through Socket.IO, using the Redis adapter so the API and workers can run as separate processes.
+**Key path:**
 
-Each project gets its own Docker bridge network. Traefik is attached to those networks so services in different projects stay isolated from each other.
+1. A webhook or API call inserts a `deployments` row (status `QUEUED`) and calls `EnqueueDeployment`.
+2. The deploy worker (a separate process) picks the job, sets status to `BUILDING`, clones or pulls, builds or skips build, runs the container, health-checks it, then marks `RUNNING` and removes the previous container.
+3. Traefik is already connected to the per-project bridge network and reads container labels with no reload needed.
+4. Status changes are emitted to Socket.IO rooms (`service:<id>`, `deployment:<id>`) via a Redis adapter so the UI updates in real time.
 
-## Tech stack
+---
 
-| Layer              | Technologies                                                                           |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| Frontend           | Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui, TanStack Query, Recharts |
-| Backend            | Node.js, Express 5, TypeScript, Zod                                                    |
-| Database           | PostgreSQL 16, Drizzle ORM (migrations run on startup)                                 |
-| Queue and realtime | Redis, BullMQ, Socket.IO                                                               |
-| Containers         | Docker (dockerode), Traefik v3                                                         |
-| Infra              | AWS EC2, pm2 or Docker Compose                                                         |
+## Tech Stack
 
-## Design decisions
+| Layer             | Technology                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| API server        | Express 5, TypeScript, Socket.IO                                                            |
+| Queue / workers   | BullMQ 6 (Redis-backed), two separate worker processes                                      |
+| Database          | PostgreSQL 16 via Drizzle ORM, `drizzle-kit` migrations                                     |
+| Cache / broker    | Redis 7 (ioredis), Redis adapter for Socket.IO                                              |
+| Container runtime | Docker Engine via `dockerode`                                                               |
+| Reverse proxy     | Traefik (label-based, wildcard subdomain routing)                                           |
+| Auth              | JWT in httpOnly cookie, bcrypt passwords, GitHub OAuth                                      |
+| UI                | Next.js 16, React 19, TanStack Query, Socket.IO client, Recharts, shadcn/ui, Tailwind CSS 4 |
 
-- **Queue outside the API.** Builds take minutes and can fail, so the API only creates a row and enqueues a job. Workers run as separate processes and can restart without dropping requests.
-- **Job ID equals deployment ID.** Enqueueing the same deployment twice does not create a second job.
-- **Webhook dedup in Redis.** GitHub delivery IDs are stored with a 24-hour TTL so a redelivered push does not trigger a second build.
-- **Pinned commit SHA.** The SHA is resolved once, stored on the deployment, and used for the image tag. This is what makes rollback rebuilds reproducible.
-- **Health check before cutover.** A failed deploy removes its own container and leaves the previous version running.
-- **Wildcard routing, no per-service config.** Traefik reads Docker labels, so a new service needs no proxy config change.
+---
 
-## Project structure
+## Key Design Decisions
 
-```
-DeployDock/
-├── server/
-│   ├── controllers/   request handlers
-│   ├── routes/        Express routers
-│   ├── service/       deploy, container and log services
-│   ├── queue/         BullMQ queues
-│   ├── workers/       deploy and container-action workers
-│   ├── webhooks/      GitHub webhook registration and handler
-│   ├── schema/        Drizzle tables and Zod schemas
-│   ├── migrations/    SQL migrations
-│   ├── socket/        Socket.IO server
-│   ├── utils/         docker, github, domain helpers
-│   └── docker-compose.yml
-└── ui/
-    ├── app/           Next.js routes: projects, services, deployments, logs, metrics
-    ├── components/
-    ├── hooks/         React Query and socket hooks
-    └── docker-compose.yml
-```
+**Workers run as separate processes, not inside the API**
+`deploy.worker.ts` and `container-action.worker.ts` are started independently (`npm run workers`). Long-running Docker builds and the 15-minute build timeout cannot block the HTTP process. Workers can be restarted independently without taking down the API.
 
-## Getting started
+**Traefik label-based routing, no config reload**
+Each container is created with `traefik.http.routers.<slug>.rule=Host(...)` labels and connected to a per-project bridge network (`project_<project_id>_network`). Traefik watches the Docker socket and picks up the route immediately. No static config file is written or reloaded. `TRAEFIK_CONTAINER` tells the code which container to connect to each project network.
+
+**Rollback rebuilds from `commit_sha` when the image is gone**
+`deployments.image_tag` and `deployments.commit_sha` are persisted per deployment. On rollback, `IsImageExists(target.image_tag)` is checked first. If present the image is reused directly. If not, `CloneRepo` is called with the specific SHA (`git fetch --depth 1 origin <sha>`) and the image is rebuilt from that exact commit. Docker-image-based deployments skip the rebuild path and always re-pull.
+
+**Webhook delivery deduplication via Redis**
+The GitHub webhook handler stores each `x-github-delivery` ID in Redis with a 24-hour TTL (`gh_delivery:<id>`) using `SET NX`. Duplicate deliveries (GitHub retries) are dropped before a deployment is queued.
+
+---
+
+## Local Setup
 
 ### Prerequisites
 
+- Docker Engine running on the host
 - Node.js 20+
-- Docker
-- PostgreSQL and Redis (the compose file runs both)
-- A GitHub OAuth app. Set its callback URL to `<API_URL>/api/auth/github/callback`
-- Traefik v3 running as a container named `traefik` (or set `TRAEFIK_CONTAINER`), attached to an external Docker network called `web`. For HTTPS on subdomains you need a wildcard certificate for `*.<BASE_DOMAIN>`. Traefik is not bundled in this repo.
+- A running Traefik container named `traefik` (or override `TRAEFIK_CONTAINER`)
 
-### Environment variables
-
-Create `server/.env`:
-
-| Variable               | Description                                                                 |
-| ---------------------- | --------------------------------------------------------------------------- |
-| `PORT`                 | API port, default `3001`                                                    |
-| `NODE_ENV`             | `development` or `production`                                               |
-| `DATABASE_URL`         | Postgres connection string                                                  |
-| `REDIS_URL`            | Redis connection string                                                     |
-| `JWT_SECRET_KEY`       | Secret for signing session tokens                                           |
-| `TOKEN_ENC_KEY`        | Key used to encrypt stored GitHub tokens                                    |
-| `GITHUB_CLIENT_ID`     | GitHub OAuth app client ID                                                  |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret                                              |
-| `CLIENT_URL`           | UI origin, used for CORS, default `http://localhost:3000`                   |
-| `PUBLIC_API_URL`       | Publicly reachable API URL, used as the webhook target. Cannot be localhost |
-| `BASE_DOMAIN`          | Domain for service subdomains, default `localhost`                          |
-| `TLS_ENABLED`          | `true` routes services through the `websecure` entrypoint                   |
-| `PUBLIC_PORT`          | Public port used when building service URLs                                 |
-| `TRAEFIK_CONTAINER`    | Traefik container name, default `traefik`                                   |
-| `DEFAULT_APP_PORT`     | Fallback container port, default `3000`                                     |
-| `POSTGRES_PASSWORD`    | Used by `docker-compose.yml`                                                |
-
-Create `ui/.env.local`:
-
-| Variable                  | Description                              |
-| ------------------------- | ---------------------------------------- |
-| `NEXT_PUBLIC_API_URL`     | API base URL                             |
-| `NEXT_PUBLIC_BASE_DOMAIN` | Same value as the server's `BASE_DOMAIN` |
-
-### Run locally
+### 1. Start infrastructure
 
 ```bash
-git clone https://github.com/vickynot-10/DeployDock.git
-cd DeployDock
-
-cd server
-npm install
-npm run dev          # API on :3001
-npm run workers      # deploy and container-action workers, in a second terminal
-
-cd ../ui
-npm install
-npm run dev          # UI on :3000
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+docker run -d --name postgres \
+  -e POSTGRES_USER=dockhand \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=dockhand \
+  -p 5432:5432 postgres:16-alpine
 ```
 
-The API creates the database if it does not exist and applies migrations on startup. Workers need access to the Docker daemon.
-
-### Run with Docker Compose
+### 2. Server
 
 ```bash
 cd server
-docker compose up -d --build    # postgres, redis, api, worker-deploy, worker-actions
-
-cd ../ui
-docker compose up -d --build
+cp .env.example .env   # fill in values from the table below
+npm install
+npm run dev            # API on :3001 — runs migrations on startup
 ```
 
-`docker-compose.yml` in both folders contains the author's domain (`deploydock.duckdns.org`) in the Traefik host rules and build args. Replace it with your own before deploying.
+In a second terminal:
 
-## API overview
+```bash
+cd server
+npm run workers        # starts deploy + container-action workers concurrently
+```
 
-| Route                                           | Purpose                                  |
-| ----------------------------------------------- | ---------------------------------------- |
-| `POST /api/auth/sign-up`, `sign-in`, `sign-out` | Email and password auth                  |
-| `GET /api/auth/github`, `/callback`             | GitHub OAuth                             |
-| `/api/projects`                                 | Project CRUD                             |
-| `/api/github/repos`, `branch`, `tree`, `detect` | Repo browsing and runtime detection      |
-| `/api/services`                                 | Service CRUD, deploy, start/stop actions |
-| `/api/deployments`                              | Deployment history, rollback             |
-| `/api/logs`                                     | Runtime logs                             |
-| `/api/metrics`                                  | Deployment and container metrics         |
-| `POST /webhooks/github/:service_id`             | GitHub push webhook                      |
+### 3. UI
 
-## Limitations
+```bash
+cd ui
+cp .env.example .env
+npm install
+npm run dev            # Next.js on :3000
+```
 
-- Builds and containers run on the same host as the API. There is no multi-node scheduling
-- The deploy worker runs one job at a time (`concurrency: 1`)
-- The workers mount `/var/run/docker.sock`, so anyone who can run code on the worker host controls Docker
-- Memory is capped at 256 MB per container and is not configurable per service
-- No automated tests yet
+### Server environment variables
 
-## License
+| Variable               | Required | Description                                                                           |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | ✅       | Postgres connection string                                                            |
+| `REDIS_URL`            | ✅       | Redis connection string                                                               |
+| `JWT_SECRET_KEY`       | ✅       | Secret used to sign JWT tokens                                                        |
+| `TOKEN_ENC_KEY`        | ✅       | Hex key used to AES-encrypt stored GitHub tokens                                      |
+| `CLIENT_URL`           | ✅       | URL of the UI (CORS origin)                                                           |
+| `PUBLIC_API_URL`       | ✅       | Publicly reachable API URL — used as the GitHub webhook target; must not be localhost |
+| `GITHUB_CLIENT_ID`     | ✅       | GitHub OAuth app client ID                                                            |
+| `GITHUB_CLIENT_SECRET` | ✅       | GitHub OAuth app client secret                                                        |
+| `GITHUB_CALLBACK_URL`  | ✅       | OAuth callback (`<PUBLIC_API_URL>/api/auth/github/callback`)                          |
+| `BASE_DOMAIN`          | ✅       | Root domain for subdomains, e.g. `example.com`                                        |
+| `TLS_ENABLED`          | —        | Set to `"true"` to use the `websecure` Traefik entrypoint and `https://` URLs         |
+| `PUBLIC_PORT`          | —        | Port suffix in generated URLs (defaults to 443 or 80 based on `TLS_ENABLED`)          |
+| `TRAEFIK_CONTAINER`    | —        | Name of the Traefik container (default: `traefik`)                                    |
+| `DEFAULT_APP_PORT`     | —        | Fallback container port when a service has none set (default: `3000`)                 |
+| `PORT`                 | —        | API listen port (default: `3001`)                                                     |
+| `NODE_ENV`             | —        | Set to `production` to enable secure cookies                                          |
 
-TBD
+### UI environment variables
+
+| Variable                  | Required | Description                                        |
+| ------------------------- | -------- | -------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`     | ✅       | Full URL of the API server                         |
+| `NEXT_PUBLIC_BASE_DOMAIN` | ✅       | Base domain shown in the UI for subdomain previews |
+
+---
+
+## Project Structure
+
+```
+dockhand/
+├── server/
+│   ├── app.ts                        # Express entry, migrations, Socket.IO init
+│   ├── constants.ts                  # Deployment statuses, deploy types, runtimes
+│   ├── workers/
+│   │   ├── deploy.worker.ts                      # BullMQ worker entry (deploy queue)
+│   │   ├── deploy-process.worker.ts              # GitHub / Docker / rollback logic
+│   │   ├── container-action.worker.ts            # BullMQ worker entry (actions queue)
+│   │   └── container-action-process.worker.ts    # Stop / start / remove container
+│   ├── queue/
+│   │   ├── deploy.queue.ts           # deployments queue, 3 attempts, exponential backoff
+│   │   └── container-actions.queue.ts
+│   ├── service/
+│   │   ├── deploy.service.ts         # DockerBasedDeploy, GithubBasedDeploy, health check
+│   │   ├── docker-logs.service.ts    # Runtime log tailing → service_logs
+│   │   └── deploy-logs.service.ts    # Build log buffering → deployment_logs
+│   ├── webhooks/
+│   │   └── github.webhook.ts         # Webhook registration, HMAC verify, delivery dedup
+│   ├── utils/
+│   │   ├── docker.ts                 # dockerode wrappers, RunContainer, health check
+│   │   ├── github.ts                 # Clone repo, Dockerfile generation, docker.buildImage
+│   │   ├── domain.ts                 # BuildHostName, BuildPublicUrl, slug validation
+│   │   └── containerStats.ts         # CPU, memory, network snapshot
+│   ├── controllers/                  # Route handlers
+│   ├── routes/                       # Express routers
+│   ├── schema/database/              # Drizzle table definitions
+│   └── docker-compose.yml            # Production compose (api, two workers, pg, redis)
+└── ui/
+    ├── app/                          # Next.js app router pages
+    ├── components/                   # UI components (shadcn/ui base)
+    ├── hooks/                        # TanStack Query hooks, socket hooks
+    └── utils/                        # axios instance, socket client, queryClient
+```
+
+---
+
+## Roadmap
+
+Items not built in the current code:
+
+- [ ] Multi-user / team access — services are scoped to a single `user_id` with no sharing
+- [ ] Custom domains — only `<slug>.<BASE_DOMAIN>` is supported; no CNAME / custom domain flow
+- [ ] TLS certificate provisioning — `TLS_ENABLED` switches Traefik to `websecure` but Let's Encrypt / ACME config is not in this repo
+- [ ] Log retention / pruning — `service_logs` and `deployment_logs` grow without a cleanup job
+- [ ] Build caching — each GitHub deploy does a full clone with no dependency or layer cache between builds
+- [ ] Deploy preview URLs — no branch-preview or PR-based deployment path
+
+---
+
+## Uncertainties
+
+> Things that could not be confirmed from the code alone:
+
+- **Traefik wildcard TLS config** — `docker-compose.yml` uses the `websecure` entrypoint for the API route, implying a wildcard cert is configured externally; that configuration is not in this repo.
+- **`DEPLOY_NETWORK` env var** — present in `.env` but not referenced in any TypeScript source file found; may be unused or intended for a future Traefik `--providers.docker.network` override.
+- **Health check on non-Linux hosts** — `HealthCheckCOntainer` only does an HTTP probe on Linux (`process.platform === "linux"`); on macOS/Windows it waits 8 seconds and assumes healthy, which may give false positives in development.
+- **`kafkajs` dependency** — installed in `package.json` but no import was found in any source file; unclear if planned or leftover.
+- **UI package name** — `ui/package.json` has `"name": "Fillire"`, not DeployDock; the UI appears to be from a renamed or repurposed project.
