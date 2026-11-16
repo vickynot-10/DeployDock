@@ -1,0 +1,20 @@
+services:
+  ui:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_URL: https://api.deploydock.duckdns.org
+        NEXT_PUBLIC_BASE_DOMAIN: deploydock.duckdns.org
+    restart: unless-stopped
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ui.rule=Host(`app.deploydock.duckdns.org`)"
+      - "traefik.http.routers.ui.entrypoints=websecure"
+      - "traefik.http.routers.ui.tls=true"
+      - "traefik.http.services.ui.loadbalancer.server.port=3000"
+
+networks:
+  web:
+    external: true

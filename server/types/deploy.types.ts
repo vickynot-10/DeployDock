@@ -1,0 +1,52 @@
+export interface DeployParams {
+  user_id: string;
+  project_id: string;
+  service_id: string;
+  deploy_type: number;
+  trigger_type: number;
+}
+
+export type RunContainerOptions = {
+  project_id: string;
+  service_name: string;
+
+  name: string;
+  image: string;
+  slug: string;
+  port: number;
+  hostname: string;
+  env_vars?: { key: string; value: string }[];
+};
+
+export type GitHubOptions = {
+  user_id: string;
+  repo_name: string;
+  branch: string;
+  root: string;
+  type: string;
+  slug: string;
+  build_command: string;
+  runtime: number;
+  start_command: string | null;
+  output_directory: string;
+  use_dockerfile: boolean;
+  port: number;
+  env_vars?: { key: string; value: string }[];
+  commit_sha?: string | undefined;
+};
+
+export type OnLog = (stream: string, line: string) => void;
+
+export type HealthOptions = {
+  name: string;
+  project_id: string;
+  port: number;
+  path?: string;
+  timeout_ms?: number;
+  interval_ms?: number;
+};
+
+export type HealthResult = {
+  healthy: boolean;
+  reason: string | null;
+};
