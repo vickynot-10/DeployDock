@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ChartConfig } from "@/components/ui/chart";
 import { useGetMetrics } from "@/hooks/queries/useMetrics";
 import MetricStats from "./components/MetricStats";
-import { StatusChart } from "./components/MetricCharts";
+import { DeployMentsDayChart, StatusChart } from "./components/MetricCharts";
 
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
@@ -46,17 +46,7 @@ export default function MetricsModule() {
 
   const containers = data?.containers ?? [];
 
-  const statusRows = data
-    ? [
-        { status: "Running", count: data.deployments.running },
-        { status: "Failed", count: data.deployments.failed },
-        { status: "Queued", count: data.deployments.queued },
-        { status: "Cancelled", count: data.deployments.cancelled },
-        { status: "Stopped", count: data.deployments.stopped },
-        { status: "Superseded", count: data.deployments.superseded },
-        { status: "Suspended", count: data.deployments.suspended },
-      ]
-    : [];
+  const deployment_dates = data?.deploymentsOverDays ?? [];
 
   const cpuRows = containers.map((item) => ({
     name: item.service_name,
@@ -120,13 +110,12 @@ export default function MetricsModule() {
         <>
           <MetricStats stats={data.deployments} />
 
-          <StatusChart stats={data.deployments} />
+          <DeployMentsDayChart deployment_dates={deployment_dates} />
 
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              Running containers
-            </h2>
+          <div className=" grid grid-cols-1 md:grid-cols-2 gap-3 ">
             <ContainerCards containers={containers} />
+
+            <StatusChart stats={data.deployments} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">

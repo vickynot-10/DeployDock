@@ -1,6 +1,19 @@
 "use client";
-
-import { Label, Pie, PieChart } from "recharts";
+import { useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Label,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +23,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { MetricsResponse } from "@/hooks/queries/useMetrics";
+import { DeploymentDate, MetricsResponse } from "@/hooks/queries/useMetrics";
 
 type Stats = MetricsResponse["deployments"];
 
@@ -175,6 +188,135 @@ export function StatusChart({ stats }: { stats: Stats }) {
             </div>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+const DAYS_WINDOW = 7;
+
+const dayChartConfig = {
+  count: { label: "Deployments", color: "var(--color-blue-500)" },
+} satisfies ChartConfig;
+
+type DayRow = { day: string; count: number };
+
+function getDayKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function buildDayRows(items: DeploymentDate[]): DayRow[] {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const key = getDayKey(new Date(item.deployment_date));
+    totals.set(key, (totals.get(key) ?? 0) + Number(item.count));
+  }
+
+  const today = new Date();
+  const rows: DayRow[] = [];
+  for (let offset = DAYS_WINDOW - 1; offset >= 0; offset--) {
+    const day = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - offset,
+    );
+    rows.push({
+      day: day.toLocaleDateString([], { day: "numeric", month: "short" }),
+      count: totals.get(getDayKey(day)) ?? 0,
+    });
+  }
+  return rows;
+}
+
+export function DeployMentsDayChart({
+  deployment_dates,
+}: {
+  deployment_dates: DeploymentDate[];
+}) {
+  const [magicView, setMagicView] = useState<"bar" | "line">("bar");
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
+  const rows = buildDayRows(deployment_dates);
+  const maxCount = Math.max(...rows.map((row) => row.count));
+  const peakIndex =
+    maxCount > 0 ? rows.findIndex((row) => row.count === maxCount) : -1;
+  const activeIndex = hoverIndex ?? peakIndex;
+
+  return (
+    <Card className="shadow-xs">
+      <CardHeader className="flex flex-row items-center justify-between px-6">
+        <CardTitle>
+          <h4 className="text-lg font-medium">Deployments per Day</h4>
+        </CardTitle>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant={magicView === "bar" ? "secondary" : "ghost"}
+            onClick={() => setMagicView("bar")}
+          >
+            Bar
+          </Button>
+          <Button
+            size="sm"
+            variant={magicView === "line" ? "secondary" : "ghost"}
+            onClick={() => setMagicView("line")}
+          >
+            Line
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="px-6">
+        <ChartContainer config={dayChartConfig} className="h-64 w-full">
+          {magicView === "bar" ? (
+            <BarChart data={rows} margin={{ top: 8, right: 8, left: 8 }}>
+              <XAxis
+                dataKey="day"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+              />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              <Bar
+                dataKey="count"
+                radius={8}
+                maxBarSize={40}
+                onMouseEnter={(_, index) => setHoverIndex(index)}
+                onMouseLeave={() => setHoverIndex(null)}
+              >
+                {rows.map((row, index) => (
+                  <Cell
+                    key={row.day}
+                    fill="var(--color-count)"
+                    fillOpacity={index === activeIndex ? 1 : 0.2}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          ) : (
+            <LineChart data={rows} margin={{ top: 8, right: 12, left: 0 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="day"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={32}
+                allowDecimals={false}
+              />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              <Line
+                dataKey="count"
+                type="monotone"
+                stroke="var(--color-count)"
+                strokeWidth={2.5}
+                dot={false}
+              />
+            </LineChart>
+          )}
+        </ChartContainer>
       </CardContent>
     </Card>
   );

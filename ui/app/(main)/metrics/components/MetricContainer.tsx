@@ -21,7 +21,7 @@ function ContainerCard({ item }: { item: ServiceMetric }) {
     : 0;
 
   return (
-    <Card>
+    <Card className="w-72 shrink-0 snap-start sm:w-80">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="truncate text-base">
           {item.service_name}
@@ -88,7 +88,7 @@ export function ContainerCards({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3">
       {containers.map((item) => (
         <ContainerCard key={item.service_id} item={item} />
       ))}

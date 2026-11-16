@@ -13,6 +13,11 @@ export type ServiceMetric = {
   restart_count: number;
 };
 
+export type DeploymentDate = {
+  deployment_date: string;
+  count: string | number;
+};
+
 export type MetricsResponse = {
   deployments: {
     total_deployments: number;
@@ -26,6 +31,7 @@ export type MetricsResponse = {
     avg_duration_seconds: string | null;
   };
   containers: ServiceMetric[];
+  deploymentsOverDays: DeploymentDate[];
 };
 
 export function useGetMetrics(service_id: string | null) {
