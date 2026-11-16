@@ -4,13 +4,16 @@ import { useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { ServiceSelect } from "@/components/common/ServiceSelect";
 import { ContainerCards } from "./components/MetricContainer";
-import { MetricChart } from "./components/MetricChart";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ChartConfig } from "@/components/ui/chart";
 import { useGetMetrics } from "@/hooks/queries/useMetrics";
 import MetricStats from "./components/MetricStats";
-import { DeployMentsDayChart, StatusChart } from "./components/MetricCharts";
+import {
+  DeployMentsDayChart,
+  ResourceChart,
+  StatusChart,
+} from "./components/MetricCharts";
 
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
@@ -118,34 +121,15 @@ export default function MetricsModule() {
             <StatusChart stats={data.deployments} />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <MetricChart
-              title="CPU"
-              description="Percent of one core, per service"
-              config={cpuConfig}
-              data={cpuRows}
-              xKey="name"
-              dataKeys={["cpu"]}
-            />
-            <MetricChart
-              title="Memory"
-              description="Memory in use, per service"
-              config={memoryConfig}
-              data={memoryRows}
-              xKey="name"
-              dataKeys={["memory_mb"]}
-            />
-            <div className="lg:col-span-2">
-              <MetricChart
-                title="Network"
-                description={`Total traffic since the container started, in ${networkUnit}`}
-                config={networkConfig}
-                data={networkRows}
-                xKey="name"
-                dataKeys={["rx", "tx"]}
-              />
-            </div>
-          </div>
+          <ResourceChart
+            cpuRows={cpuRows}
+            memoryRows={memoryRows}
+            networkRows={networkRows}
+            cpuConfig={cpuConfig}
+            memoryConfig={memoryConfig}
+            networkConfig={networkConfig}
+            networkUnit={networkUnit}
+          />
         </>
       )}
     </div>

@@ -14,11 +14,19 @@ import {
   YAxis,
 } from "recharts";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -317,6 +325,129 @@ export function DeployMentsDayChart({
             </LineChart>
           )}
         </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+type ChartRow = Record<string, string | number>;
+
+type ResourceView = "cpu" | "memory" | "network";
+
+type ResourceChartProps = {
+  cpuRows: ChartRow[];
+  memoryRows: ChartRow[];
+  networkRows: ChartRow[];
+  cpuConfig: ChartConfig;
+  memoryConfig: ChartConfig;
+  networkConfig: ChartConfig;
+  networkUnit: string;
+  emptyText?: string;
+};
+
+export function ResourceChart({
+  cpuRows,
+  memoryRows,
+  networkRows,
+  cpuConfig,
+  memoryConfig,
+  networkConfig,
+  networkUnit,
+  emptyText = "No running containers",
+}: ResourceChartProps) {
+  const [view, setView] = useState<ResourceView>("cpu");
+
+  const views = {
+    cpu: {
+      label: "CPU",
+      description: "Percent of one core, per service",
+      config: cpuConfig,
+      data: cpuRows,
+      dataKeys: ["cpu"],
+    },
+    memory: {
+      label: "Memory",
+      description: "Memory in use, per service",
+      config: memoryConfig,
+      data: memoryRows,
+      dataKeys: ["memory_mb"],
+    },
+    network: {
+      label: "Network",
+      description: `Total traffic since the container started, in ${networkUnit}`,
+      config: networkConfig,
+      data: networkRows,
+      dataKeys: ["rx", "tx"],
+    },
+  } satisfies Record<
+    ResourceView,
+    {
+      label: string;
+      description: string;
+      config: ChartConfig;
+      data: ChartRow[];
+      dataKeys: string[];
+    }
+  >;
+
+  const active = views[view];
+
+  return (
+    <Card className="shadow-xs">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="space-y-1.5">
+          <CardTitle className="text-base">{active.label}</CardTitle>
+          <CardDescription>{active.description}</CardDescription>
+        </div>
+        <div className="flex items-center gap-1">
+          {(Object.keys(views) as ResourceView[]).map((key) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={view === key ? "secondary" : "ghost"}
+              onClick={() => setView(key)}
+            >
+              {views[key].label}
+            </Button>
+          ))}
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {active.data.length === 0 ? (
+          <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+            {emptyText}
+          </div>
+        ) : (
+          <ChartContainer
+            key={view}
+            config={active.config}
+            className="h-56 w-full"
+          >
+            <BarChart data={active.data} margin={{ left: 0, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <YAxis tickLine={false} axisLine={false} width={44} />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              {active.dataKeys.length > 1 && (
+                <ChartLegend content={<ChartLegendContent />} />
+              )}
+              {active.dataKeys.map((key) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  fill={`var(--color-${key})`}
+                  radius={4}
+                  maxBarSize={56}
+                />
+              ))}
+            </BarChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   );
