@@ -58,6 +58,7 @@ export async function GetProjectsServices(req: Request, res: Response) {
             'updated_on', ${services.updated_on},
             'host' , ${services.host}
           )
+             ORDER BY ${services.updated_on} DESC
         ) FILTER (WHERE ${services.id} IS NOT NULL),
         '[]'::jsonb
       )
