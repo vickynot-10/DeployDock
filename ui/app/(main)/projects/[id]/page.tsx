@@ -1,5 +1,10 @@
 import ProjectServices from "../components/ProjectServices";
 
+export const metadata = {
+  title: "Project | DeployDock",
+  description: "View and manage services within your project.",
+};
+
 type Props = {
   params: Promise<{
     id: string;

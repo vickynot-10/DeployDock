@@ -43,6 +43,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { useSignout } from "@/hooks/queries/useAuth";
 import Link from "next/link";
+import { PloyckLogo } from "./AppIcons";
 export type NavItem = {
   label?: string;
   isSection?: boolean;
@@ -89,58 +90,10 @@ export function AppSidebar() {
         <SidebarHeader className="px-4">
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/"></Link>
-              <svg
-                width="147"
-                height="40"
-                viewBox="0 0 147 40"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <clipPath id="dd-circle-clip">
-                    <circle cx="73.5" cy="20" r="20" />
-                  </clipPath>
-                </defs>
-
-                {/* Solid circle, full brightness */}
-                <circle
-                  cx="73.5"
-                  cy="20"
-                  r="20"
-                  fill="#030712"
-                  className="dark:fill-[#FFFFFF]"
-                />
-
-                {/* Text in normal color (visible outside the circle) */}
-                <text
-                  x="73.5"
-                  y="26.3"
-                  textAnchor="middle"
-                  fontSize="19"
-                  fontWeight="500"
-                  fill="#030712"
-                  className="dark:fill-[#FFFFFF]"
-                  style={{ fontFamily: "inherit" }}
-                >
-                  DeployDock
-                </text>
-
-                {/* Same text in inverted color, visible only inside the circle */}
-                <text
-                  x="73.5"
-                  y="26.3"
-                  textAnchor="middle"
-                  fontSize="19"
-                  fontWeight="500"
-                  fill="white"
-                  className="dark:fill-[#030712]"
-                  clipPath="url(#dd-circle-clip)"
-                  style={{ fontFamily: "inherit" }}
-                >
-                  DeployDock
-                </text>
-              </svg>
+              <Link href="/" className=" flex items-center justify-center">
+                {" "}
+                <PloyckLogo />{" "}
+              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>

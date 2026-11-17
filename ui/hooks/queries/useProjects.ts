@@ -12,7 +12,9 @@ export function useGetProjects() {
       const res = await api.get("/projects");
       return res.data ?? null;
     },
-    staleTime: 1000 * 60 * 5,
+
+    refetchOnMount: true,
+    staleTime: 0,
   });
 }
 

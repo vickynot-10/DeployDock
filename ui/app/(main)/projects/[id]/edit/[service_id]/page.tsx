@@ -1,5 +1,10 @@
 import EditService from "./Editservice";
 
+export const metadata = {
+  title: "Edit Service | DeployDock",
+  description: "Edit the configuration of your DeployDock service.",
+};
+
 type Props = {
   params: Promise<{
     id: string;

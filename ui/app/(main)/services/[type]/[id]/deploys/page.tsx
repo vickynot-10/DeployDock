@@ -1,5 +1,10 @@
 import ViewService from "../../../ViewServices";
 
+export const metadata = {
+  title: "Service Deployments | DeployDock",
+  description: "View all deployments for this service.",
+};
+
 type Props = {
   params: Promise<{
     id: string;

@@ -1,8 +1,10 @@
 # DeployDock
 
-Self-hosted container deployment platform — connect a GitHub repo or Docker image, and DeployDock builds, runs, and routes it to a unique subdomain via Traefik.
+Self-hosted container deployment platform. Connect a GitHub repo or Docker image, and DeployDock builds, runs, and routes it to a unique subdomain via Traefik.
 
-**Live:** _not yet deployed_ &nbsp;|&nbsp; **Screenshot:** _placeholder_
+![Demo](docs/demo_gif.gif)
+
+[Watch the full demo video](docs/full_demo.mp4)
 
 ---
 
@@ -15,6 +17,30 @@ Self-hosted container deployment platform — connect a GitHub repo or Docker im
 - **Suspend / resume / delete services** — container actions (stop, start, remove) are queued through a separate BullMQ queue with concurrency 5, independent of the deploy queue.
 - **Live build logs and runtime container logs** — build output is buffered per deployment and stored in `deployment_logs`; running-container stdout/stderr is tailed via the Docker API and written to `service_logs` with periodic flushes.
 - **Per-container metrics** — `GET /api/metrics` returns live CPU %, memory usage/limit, network rx/tx bytes, and restart count pulled directly from `dockerode`.
+
+---
+
+## Screenshots
+
+| Projects                                   | Create Service                                         |
+| ------------------------------------------ | ------------------------------------------------------ |
+| ![Projects](docs/screenshots/projects.png) | ![Create Service](docs/screenshots/create_service.png) |
+
+| Services                                   | Deployments                                      |
+| ------------------------------------------ | ------------------------------------------------ |
+| ![Services](docs/screenshots/services.png) | ![Deployments](docs/screenshots/deployments.png) |
+
+| Build Logs                                  | Runtime Logs                                       |
+| ------------------------------------------- | -------------------------------------------------- |
+| ![Build Logs](docs/screenshots/deploys.png) | ![Runtime Logs](docs/screenshots/runtime_logs.png) |
+
+| Metrics                                    | Metrics (detail)                                  |
+| ------------------------------------------ | ------------------------------------------------- |
+| ![Metrics](docs/screenshots/metrics_1.png) | ![Metrics detail](docs/screenshots/metrics_2.png) |
+
+| Settings                                   |
+| ------------------------------------------ |
+| ![Settings](docs/screenshots/settings.png) |
 
 ---
 

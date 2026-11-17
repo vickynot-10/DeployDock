@@ -18,6 +18,7 @@ function SetCookie(res: Response, token: string) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    domain: ".deploydock.duckdns.org",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }
@@ -105,6 +106,7 @@ export async function SignOut(req: Request, res: Response) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
+    domain: ".deploydock.duckdns.org",
     path: "/",
   });
   return send_success(res, 200, null, "Logged Out Successfully !");
@@ -121,6 +123,7 @@ export function GithubAuth(req: Request, res: Response) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
+    domain: ".deploydock.duckdns.org",
     maxAge: 10 * 60 * 1000,
   });
 
