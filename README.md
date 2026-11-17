@@ -11,6 +11,7 @@ Self-hosted container deployment platform. Connect a GitHub repo or Docker image
 ## What It Does
 
 - **Deploy from GitHub or Docker Hub** — point a service at a repo branch or a Docker image URL; the worker clones, builds (or pulls), and starts a container automatically.
+- **Zero-downtime deploys** — the new container starts alongside the old one, must pass an HTTP health check, and only then does the old container get a graceful stop. A failed deploy leaves the previous version serving.
 - **Auto-deploy on push** — registers a GitHub webhook per service; a verified `push` event to the tracked branch triggers a new deployment without any manual step.
 - **One subdomain per service** — every service gets a slug-based hostname (`<slug>.<BASE_DOMAIN>`) written as Traefik labels on the container, so routing is live the moment the container starts.
 - **Rollback to any past deployment** — re-queues the target deployment ID; if the original image is still cached it is reused, otherwise the worker re-clones from the stored `commit_sha` and rebuilds.
@@ -58,18 +59,18 @@ flowchart TD
     G --> I["Generate or use repo Dockerfile"]
     I --> J["docker.buildImage\n(15 min timeout)"]
     J --> K
-    H --> K["docker.createContainer\nTraefik labels + project network"]
+    H --> K["docker.createContainer + start\nTraefik labels + project network\n(unique name per deployment)"]
     K --> L["Health check\nHTTP probe on container IP:port"]
-    L -->|"healthy"| M["Remove old containers\nmark deployment RUNNING"]
-    L -->|"unhealthy"| N["Remove container\nmark deployment FAILED"]
-    M --> O["Traefik reads labels\nroutes slug.BASE_DOMAIN to container"]
+    L -->|"healthy"| M["Mark new deployment RUNNING\nupdate service host"]
+    L -->|"unhealthy"| N["Remove new container\nmark deployment FAILED\nold container keeps serving"]
+    M --> O["Wait 3s for Traefik to see new backend\nstop (SIGTERM, 10s) + remove old container\nmark old deployment SUPERSEDED"]
     P["container-action.worker\n(concurrency 5)"] -->|"suspend/resume/delete"| Q["Stop / Start / Remove container"]
 ```
 
 **Key path:**
 
 1. A webhook or API call inserts a `deployments` row (status `QUEUED`) and calls `EnqueueDeployment`.
-2. The deploy worker (a separate process) picks the job, sets status to `BUILDING`, clones or pulls, builds or skips build, runs the container, health-checks it, then marks `RUNNING` and removes the previous container.
+2. The deploy worker (a separate process) picks the job, sets status to `BUILDING`, clones or pulls, builds or skips build, then starts a new container under a unique per-deployment name and health-checks it. If healthy, it marks the deployment `RUNNING`, updates the service host, waits briefly for Traefik to register the new backend, then gracefully stops and removes the previous container. If unhealthy, only the new container is removed and the old one keeps serving.
 3. Traefik is already connected to the per-project bridge network and reads container labels with no reload needed.
 4. Status changes are emitted to Socket.IO rooms (`service:<id>`, `deployment:<id>`) via a Redis adapter so the UI updates in real time.
 
@@ -94,6 +95,11 @@ flowchart TD
 
 **Workers run as separate processes, not inside the API**
 `deploy.worker.ts` and `container-action.worker.ts` are started independently (`npm run workers`). Long-running Docker builds and the 15-minute build timeout cannot block the HTTP process. Workers can be restarted independently without taking down the API.
+
+**Zero-downtime deploys via overlapping containers**
+Each deployment gets its own container name (`<slug>-<project_id>--<deployment_id[:8]>`) with identical Traefik router and service labels, so Traefik load-balances across old and new during the overlap. Traefik's own health check (2s interval) keeps traffic off the new container until it is ready. The old container is only stopped after the new one passes the worker's health check, is recorded as `RUNNING`, and a 3s grace period has passed. Old containers get `SIGTERM` with a 10s timeout rather than `SIGKILL`, so in-flight requests can finish. Cleanup errors after the swap are logged, not thrown, so they cannot take down the healthy new container.
+
+Because both containers briefly share the same network alias, services that cannot run two instances at once (queue consumers, startup migrations) will overlap during the swap.
 
 **Traefik label-based routing, no config reload**
 Each container is created with `traefik.http.routers.<slug>.rule=Host(...)` labels and connected to a per-project bridge network (`project_<project_id>_network`). Traefik watches the Docker socket and picks up the route immediately. No static config file is written or reloaded. `TRAEFIK_CONTAINER` tells the code which container to connect to each project network.
@@ -196,7 +202,7 @@ dockhand/
 │   │   ├── deploy.queue.ts           # deployments queue, 3 attempts, exponential backoff
 │   │   └── container-actions.queue.ts
 │   ├── service/
-│   │   ├── deploy.service.ts         # DockerBasedDeploy, GithubBasedDeploy, health check
+│   │   ├── deploy.service.ts         # DockerBasedDeploy, GithubBasedDeploy, old-container cleanup
 │   │   ├── docker-logs.service.ts    # Runtime log tailing → service_logs
 │   │   └── deploy-logs.service.ts    # Build log buffering → deployment_logs
 │   ├── webhooks/
@@ -229,6 +235,8 @@ Items not built in the current code:
 - [ ] Log retention / pruning — `service_logs` and `deployment_logs` grow without a cleanup job
 - [ ] Build caching — each GitHub deploy does a full clone with no dependency or layer cache between builds
 - [ ] Deploy preview URLs — no branch-preview or PR-based deployment path
+- [ ] Per-service deploy strategy — zero-downtime overlap is the only mode; no stop-then-start option for single-instance apps
+- [ ] Orphan tracking — `container_name` is saved only after the health check passes, so a worker crash mid-deploy can leave an untracked container
 
 ---
 
