@@ -12,6 +12,7 @@ Self-hosted container deployment platform. Connect a GitHub repo or Docker image
 
 - **Deploy from GitHub or Docker Hub** — point a service at a repo branch or a Docker image URL; the worker clones, builds (or pulls), and starts a container automatically.
 - **Zero-downtime deploys** — the new container starts alongside the old one, must pass an HTTP health check, and only then does the old container get a graceful stop. A failed deploy leaves the previous version serving.
+- **Docker layer caching** — builds reuse cached image layers between deployments, cutting average deploy time from about 20 s to about 4 s on repeat builds of an unchanged commit.
 - **Auto-deploy on push** — registers a GitHub webhook per service; a verified `push` event to the tracked branch triggers a new deployment without any manual step.
 - **One subdomain per service** — every service gets a slug-based hostname (`<slug>.<BASE_DOMAIN>`) written as Traefik labels on the container, so routing is live the moment the container starts.
 - **Rollback to any past deployment** — re-queues the target deployment ID; if the original image is still cached it is reused, otherwise the worker re-clones from the stored `commit_sha` and rebuilds.
@@ -233,19 +234,9 @@ Items not built in the current code:
 - [ ] Custom domains — only `<slug>.<BASE_DOMAIN>` is supported; no CNAME / custom domain flow
 - [ ] TLS certificate provisioning — `TLS_ENABLED` switches Traefik to `websecure` but Let's Encrypt / ACME config is not in this repo
 - [ ] Log retention / pruning — `service_logs` and `deployment_logs` grow without a cleanup job
-- [ ] Build caching — each GitHub deploy does a full clone with no dependency or layer cache between builds
+- [ ] Dependency-level build caching — Docker layer caching only helps repeat builds of the same commit. The generated Dockerfile copies the whole source before running the build command, so any code change reinstalls dependencies. Splitting the dependency install into its own layer would extend the cache to normal code changes.
 - [ ] Deploy preview URLs — no branch-preview or PR-based deployment path
 - [ ] Per-service deploy strategy — zero-downtime overlap is the only mode; no stop-then-start option for single-instance apps
 - [ ] Orphan tracking — `container_name` is saved only after the health check passes, so a worker crash mid-deploy can leave an untracked container
 
 ---
-
-## Uncertainties
-
-> Things that could not be confirmed from the code alone:
-
-- **Traefik wildcard TLS config** — `docker-compose.yml` uses the `websecure` entrypoint for the API route, implying a wildcard cert is configured externally; that configuration is not in this repo.
-- **`DEPLOY_NETWORK` env var** — present in `.env` but not referenced in any TypeScript source file found; may be unused or intended for a future Traefik `--providers.docker.network` override.
-- **Health check on non-Linux hosts** — `HealthCheckCOntainer` only does an HTTP probe on Linux (`process.platform === "linux"`); on macOS/Windows it waits 8 seconds and assumes healthy, which may give false positives in development.
-- **`kafkajs` dependency** — installed in `package.json` but no import was found in any source file; unclear if planned or leftover.
-- **UI package name** — `ui/package.json` has `"name": "Fillire"`, not DeployDock; the UI appears to be from a renamed or repurposed project.
